@@ -33,6 +33,7 @@ linux-serial-test
                         de-asserted. Delay is specified in bit times.
       -o, --tx-time     Number of seconds to transmit for (defaults to 0, meaning no limit)
       -i, --rx-time     Number of seconds to receive for (defaults to 0, meaning no limit)
+      -O, --loopback    Sent the things which received
 
 # Examples
 
@@ -72,5 +73,9 @@ can be used as part of an automated test script.
 
 This outputs 10 bits that are easy to measure, and then multiply by 10
 in your head to get baud rate.
+
+## A device run this command :
+
+    linux-serial-test -O -p /dev/ttyO0 
 
 ![verify baud rate](https://github.com/cbrake/linux-serial-test/blob/master/measure-baud-rate-example.png)
