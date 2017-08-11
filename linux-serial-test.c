@@ -40,6 +40,7 @@ int _cl_tx_bytes = 0;
 int _cl_rs485_delay = -1;
 int _cl_tx_time = 0;
 int _cl_rx_time = 0;
+int _cl_loopback = 0;
 
 // Module variables
 unsigned char _write_count_value = 0;
@@ -137,7 +138,7 @@ int get_baud(int baud)
 		return B3500000;
 	case 4000000:
 		return B4000000;
-	default: 
+	default:
 		return -1;
 	}
 }
@@ -172,6 +173,7 @@ void display_help()
 			"                    de-asserted. Delay is specified in bit times.\n"
 			"  -o, --tx-time     Number of seconds to transmit for (defaults to 0, meaning no limit)\n"
 			"  -i, --rx-time     Number of seconds to receive for (defaults to 0, meaning no limit)\n"
+			"  -O, --loopback    Sent the things which received. \n"
 			"\n"
 	      );
 	exit(0);
@@ -181,7 +183,7 @@ void process_options(int argc, char * argv[])
 {
 	for (;;) {
 		int option_index = 0;
-		static const char *short_options = "hb:p:d:R:TsSy:z:cBertq:l:a:w:o:i:P:";
+		static const char *short_options = "hb:p:d:R:TsSy:z:cBertq:l:a:w:o:i:P:O";
 		static const struct option long_options[] = {
 			{"help", no_argument, 0, 0},
 			{"baud", required_argument, 0, 'b'},
@@ -205,6 +207,7 @@ void process_options(int argc, char * argv[])
 			{"rs485", required_argument, 0, 'q'},
 			{"tx-time", required_argument, 0, 'o'},
 			{"rx-time", required_argument, 0, 'i'},
+			{"loopback", required_argument, 0, 'O'},
 			{0,0,0,0},
 		};
 
@@ -304,8 +307,12 @@ void process_options(int argc, char * argv[])
 			_cl_rx_time = strtol(optarg, &endptr, 0);
 			break;
 		}
-		}
-	}
+		case 'O': {
+            _cl_loopback = 1;
+			break;
+    	}
+        }
+    }
 }
 
 void dump_serial_port_stats()
@@ -320,6 +327,34 @@ void dump_serial_port_stats()
 				_cl_port, ret, icount.rx, icount.tx, icount.frame, icount.overrun, icount.parity, icount.brk,
 				icount.buf_overrun);
 	}
+}
+
+void go_loopback(void)
+{
+    unsigned char rb[1024];
+    struct timespec current;
+	struct timespec last_read = { .tv_sec = 0, .tv_nsec = 0 };
+
+    for(;;)
+    {
+		clock_gettime(CLOCK_MONOTONIC, &current);
+
+		if (diff_ms(&current, &last_read) > 100) {
+
+            int c = read(_fd, &rb, sizeof(rb));
+
+            if(c){
+                int d = write(_fd, &rb, c);
+
+                if(d  != c){
+                    printf("write %d, but write success %d", c, d);
+                }
+            }
+
+            last_read = current;
+        }
+    }
+
 }
 
 void process_read_data()
@@ -493,6 +528,11 @@ int main(int argc, char * argv[])
 		setup_serial_port(baud);
 	}
 
+    if(_cl_loopback)
+    {
+        go_loopback();
+    }
+
 	if (_cl_single_byte >= 0) {
 		unsigned char data[2];
 		data[0] = (unsigned char)_cl_single_byte;
@@ -614,3 +654,4 @@ int main(int argc, char * argv[])
 
 	return (result > 255) ? 255 : result;
 }
+
